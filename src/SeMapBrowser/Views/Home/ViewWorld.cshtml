@@ -1,0 +1,70 @@
+﻿@model SeMapBrowser.Models.WorldModel
+
+@{
+    ViewBag.Title = Model.Name;
+}
+
+@section scripts
+{
+    <style>
+        body {
+            overflow: hidden;
+        }
+    </style>
+    <script src="~/lib/three-js/three.js"></script>
+    <script src="~/js/Detector.js"></script>
+    <script src="~/js/Stats.js"></script>
+    <script src="~/js/OrbitControls.js"></script>
+    <script src="~/js/Viewer.js"></script>
+}
+
+<div class="navbar navbar-inverse navbar-fixed-top">
+    <div class="container">
+        <p class="navbar-text">
+            <i class="fa fa-globe"></i> @Model.Name (@Model.Date.ToString("yyyy MMM dd"))
+        </p>
+        <div class="navbar-form navbar-left">
+            <div class="form-group">
+                <select id="gps_selector" class="form-control"></select>
+            </div>
+            <div class="form-group">
+                <div class="checkbox">
+                    <label>
+                        <input id="realScaleCheckbox" type="checkbox" checked="checked" />
+                        <span style="color: white;">Real scale</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <ul class="nav navbar-nav navbar-right">
+            <li>
+                <a href="@Url.Action("Index")"><i class="fa fa-times-circle"></i> Close</a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<script type="application/x-glsl" id="sky-vertex">
+    varying vec2 vUV;
+
+    void main() {
+    vUV = uv;
+    vec4 pos = vec4(position, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * pos;
+    }
+</script>
+
+<script type="application/x-glsl" id="sky-fragment">
+    uniform sampler2D texture;
+    varying vec2 vUV;
+
+    void main() {
+    vec4 sample = texture2D(texture, vUV);
+    gl_FragColor = vec4(sample.xyz, sample.w);
+    }
+</script>
+
+<script>
+    var viewer = new Viewer();
+    viewer.loadWorld('@Model.Name');
+</script>

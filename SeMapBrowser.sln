@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.22823.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{8E390ACE-05EE-4B51-BB93-D5FF2A7D77FF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{614BA3CA-EEF9-4A0D-97D5-516C1E34614A}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+	EndProjectSection
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "SeMapBrowser", "src\SeMapBrowser\SeMapBrowser.xproj", "{9C0BA521-146A-442A-956B-0FC5AE1ABF53}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9C0BA521-146A-442A-956B-0FC5AE1ABF53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9C0BA521-146A-442A-956B-0FC5AE1ABF53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9C0BA521-146A-442A-956B-0FC5AE1ABF53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9C0BA521-146A-442A-956B-0FC5AE1ABF53}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{9C0BA521-146A-442A-956B-0FC5AE1ABF53} = {8E390ACE-05EE-4B51-BB93-D5FF2A7D77FF}
+	EndGlobalSection
+EndGlobal
