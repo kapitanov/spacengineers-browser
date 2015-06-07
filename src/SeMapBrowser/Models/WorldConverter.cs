@@ -23,6 +23,8 @@ namespace SeMapBrowser.Models
                     .Element("SectorObjects")
                     .Elements("MyObjectBuilder_EntityBase");
 
+                double size = 1;
+
                 foreach (var entity in entities)
                 {
                     string name = "";
@@ -40,7 +42,11 @@ namespace SeMapBrowser.Models
                             break;
 
                         case "MyObjectBuilder_CubeGrid":
-                            if (entity.Element("GridSizeEnum").Value == "Large")
+                            if (entity.Element("IsStatic").Value == "true")
+                            {
+                                type = EntityTypes.STATION;
+                            }
+                            else if (entity.Element("GridSizeEnum").Value == "Large")
                             {
                                 type = EntityTypes.LARGE_SHIP;
                             }
@@ -48,8 +54,11 @@ namespace SeMapBrowser.Models
                             {
                                 type = EntityTypes.SMALL_SHIP;
                             }
+
+
                             var displayNameElement = entity.Element("DisplayName");
                             name = displayNameElement != null ? displayNameElement.Value : "";
+                            size = entity.Element("CubeBlocks").Elements().Count();
                             break;
 
                         default:
@@ -61,7 +70,7 @@ namespace SeMapBrowser.Models
                     var y = double.Parse(positionNode.Attribute("y").Value, CultureInfo.InvariantCulture);
                     var z = double.Parse(positionNode.Attribute("z").Value, CultureInfo.InvariantCulture);
 
-                    yield return new Entity(type, name, x, y, z);
+                    yield return new Entity(type, name, x, y, z, size);
                 }
             }
         }
@@ -71,26 +80,41 @@ namespace SeMapBrowser.Models
             using (var stream = reader.OpenSbcFile())
             {
                 var xml = XDocument.Load(stream);
-                var root = xml
+
+                var playerNames = xml
+                    .Element("MyObjectBuilder_Checkpoint")
+                    .Element("Identities")
+                    .Elements("MyObjectBuilder_Identity")
+                    .ToDictionary(
+                        x => x.Element("IdentityId").Value,
+                        x => x.Element("DisplayName").Value
+                    );
+                
+                foreach (var item in xml
                     .Element("MyObjectBuilder_Checkpoint")
                     .Element("Gps")
                     .Element("dictionary")
-                    .Elements("item");
-
-                var entries = from item in root
-                              from value in item.Elements("Value")
-                              from entry in value.Element("Entries").Elements("Entry")
-                              select entry;
-
-                foreach (var entry in entries)
+                    .Elements("item"))
                 {
-                    var name = entry.Element("name").Value;
-                    var coordsNode = entry.Element("coords");
-                    var x = double.Parse(coordsNode.Element("X").Value, CultureInfo.InvariantCulture);
-                    var y = double.Parse(coordsNode.Element("Y").Value, CultureInfo.InvariantCulture);
-                    var z = double.Parse(coordsNode.Element("Z").Value, CultureInfo.InvariantCulture);
+                    var playerId = item.Element("Key").Value;
+                    string playerName;
+                    if (!playerNames.TryGetValue(playerId, out playerName))
+                    {
+                        playerName = "@" + playerId;
+                    }
 
-                    yield return new Entity(EntityTypes.GPS, name, x, y, z);
+                    foreach (var entry in from value in item.Elements("Value")
+                                          from entry in value.Element("Entries").Elements("Entry")
+                                          select entry)
+                    {
+                        var name = entry.Element("name").Value;
+                        var coordsNode = entry.Element("coords");
+                        var x = double.Parse(coordsNode.Element("X").Value, CultureInfo.InvariantCulture);
+                        var y = double.Parse(coordsNode.Element("Y").Value, CultureInfo.InvariantCulture);
+                        var z = double.Parse(coordsNode.Element("Z").Value, CultureInfo.InvariantCulture);
+                        
+                        yield return new Entity(EntityTypes.GPS, "[" + playerName + "] " + name, x, y, z);
+                    }
                 }
             }
         }

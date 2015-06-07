@@ -1,8 +1,8 @@
-/// <reference path="three.d.ts"/>
-/// <reference path="detector.d.ts"/>
-/// <reference path="OrbitControls.d.ts"/>
-/// <reference path="stats.d.ts"/>
-/// <reference path="jquery.d.ts"/>
+/// <reference path=".\three.d.ts"/>
+/// <reference path=".\detector.d.ts"/>
+/// <reference path=".\three-orbitcontrols.d.ts"/>
+/// <reference path=".\stats.d.ts"/>
+/// <reference path=".\jquery.d.ts"/>
 var Entity = (function () {
     function Entity() {
     }
@@ -15,9 +15,10 @@ var World = (function () {
 })();
 var Viewer = (function () {
     //#endregion
-    function Viewer() {
+    function Viewer(settings) {
         //#region 3D
         var _this = this;
+        this.settings = settings;
         if (!Detector.webgl) {
             Detector.addGetWebGLMessage();
         }
@@ -32,7 +33,7 @@ var Viewer = (function () {
         this.hightlightScene = new THREE.Scene();
         this.mouse = new THREE.Vector2();
         this.cursor = new THREE.Vector2();
-        this.renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true });
+        this.renderer = new THREE.WebGLRenderer({ preserveDrawingBuffer: true, antialias: true });
         this.renderer.autoClear = false;
         this.renderer.autoClearColor = false;
         this.renderer.autoClearDepth = false;
@@ -51,32 +52,28 @@ var Viewer = (function () {
         //#region Controls
         this.raycaster = new THREE.Raycaster();
         this.controls = new THREE.OrbitControls(this.camera, container);
-        this.controls.damping = 0.2;
         this.controls.addEventListener('change', function () { return _this.render(); });
-        this.realScaleCheckbox = document.getElementById('realScaleCheckbox');
         //#endregion
         //#region Textures
         this.asteroidTexture = THREE.ImageUtils.loadTexture('/images/asteroid.jpg');
+        this.stationTexture = THREE.ImageUtils.loadTexture('/images/station.png');
+        this.debrisTexture = THREE.ImageUtils.loadTexture('/images/debris.png');
         this.gpsTexture = THREE.ImageUtils.loadTexture('/images/gps.png');
         this.largeShipTexture = THREE.ImageUtils.loadTexture('/images/large_ship.png');
         this.smallShipTexture = THREE.ImageUtils.loadTexture('/images/small_ship.png');
-        this.skyboxTexture = THREE.ImageUtils.loadTexture('/images/skybox.png');
         //#endregion
         //#region Backgrop
-        var geometry = new THREE.SphereGeometry(3000, 60, 40);
-        var uniforms = {
-            texture: { type: 't', value: this.skyboxTexture }
-        };
-        var material = new THREE.ShaderMaterial({
-            uniforms: uniforms,
-            vertexShader: document.getElementById('sky-vertex').innerText,
-            fragmentShader: document.getElementById('sky-fragment').innerText
-        });
-        var skyBox = new THREE.Mesh(geometry, material);
-        skyBox.scale.set(-1, 1, 1);
-        skyBox.eulerOrder = 'XZY';
         this.skyScene = new THREE.Scene();
-        this.skyScene.add(skyBox);
+        var skyboxGeometry = new THREE.Geometry();
+        for (var i = 0; i < 10000; i++) {
+            var vertex = new THREE.Vector3();
+            vertex.x = THREE.Math.randFloatSpread(2000);
+            vertex.y = THREE.Math.randFloatSpread(2000);
+            vertex.z = THREE.Math.randFloatSpread(2000);
+            skyboxGeometry.vertices.push(vertex);
+        }
+        var particles = new THREE.PointCloud(skyboxGeometry, new THREE.PointCloudMaterial({ color: 0x888888 }));
+        this.skyScene.add(particles);
         this.skyCamera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 2, 2000000);
         //#endregion
         //#region 2D
@@ -89,8 +86,6 @@ var Viewer = (function () {
         this.tooltip.style.lineHeight = '48px';
         this.tooltip.style.color = 'white';
         container.appendChild(this.tooltip);
-        this.gpsSelector = document.getElementById('gps_selector');
-        this.gpsSelector.addEventListener('change', function () { return _this.onGpsSelectorChange(); });
         //#endregion
         //#region Stats
         this.stats = new Stats();
@@ -100,8 +95,8 @@ var Viewer = (function () {
         //#endregion
         //#region Event handlers
         window.addEventListener('resize', function () { return _this.onWindowResize(); }, false);
-        document.addEventListener('mousemove', function (e) { return _this.onDocumentMouseMove(e); }, false);
-        container.addEventListener('mousedown', function (e) { return _this.onDocumentMouseDown(e); }, false);
+        container.addEventListener('mousemove', function (e) { return _this.onDocumentMouseMove(e); }, false);
+        container.addEventListener('mouseup', function (e) { return _this.onDocumentMouseDown(e); }, false);
         //#endregion
         this.animate();
     }
@@ -132,8 +127,14 @@ var Viewer = (function () {
             }
             this.worldObjects[i] = objects;
             entity.id = i;
+            this.addGps(entity.type, entity.name, new THREE.Vector3(entity.x, entity.y, entity.z));
         }
         console.log('World geometry is ready');
+    };
+    Viewer.prototype.navigateTo = function (x, y, z) {
+        this.scene.position.set(-x, -y, -z);
+        this.hightlightScene.position.set(-x, -y, -z);
+        this.controls.update();
     };
     //#endregion
     //#region event handlers
@@ -152,12 +153,8 @@ var Viewer = (function () {
     };
     Viewer.prototype.onDocumentMouseDown = function (event) {
         if (this.activeObject) {
-            this.navigateTo(new THREE.Vector3(this.activeObject.x, this.activeObject.y, this.activeObject.z));
+            this.navigateTo(this.activeObject.x, this.activeObject.y, this.activeObject.z);
         }
-    };
-    Viewer.prototype.onGpsSelectorChange = function () {
-        var index = parseInt(this.gpsSelector.value);
-        this.navigateTo(this.gpsCoordinates[index]);
     };
     //#endregion
     //#region private methods
@@ -169,7 +166,8 @@ var Viewer = (function () {
         object.position.z = entity.z;
         return object;
     };
-    Viewer.prototype.createSpriteObject = function (entity, size, texture, color) {
+    Viewer.prototype.createSpriteObject = function (entity, size, texture, color, sizeAttenuation) {
+        if (sizeAttenuation === void 0) { sizeAttenuation = false; }
         var geometry = new THREE.Geometry();
         var vertex = new THREE.Vector3();
         vertex.x = entity.x;
@@ -181,46 +179,61 @@ var Viewer = (function () {
             map: texture,
             blending: THREE.AdditiveBlending,
             color: color.getHex(),
-            sizeAttenuation: false,
+            sizeAttenuation: sizeAttenuation,
             depthTest: false,
             transparent: true
         });
         var object = new THREE.PointCloud(geometry, material);
-        object.pointcloud = true;
         return object;
     };
     Viewer.prototype.createObjects = function (entity) {
         switch (entity.type) {
+            case 'STATION':
+                {
+                    var size = 25 * (1 + entity.size / 2500);
+                    var stationSprite = this.createSpriteObject(entity, size, this.stationTexture, new THREE.Color('lime'));
+                    var stationDummy = this.createSphereObject(entity, 4 * size, new THREE.Color(0.5, 0.5, 0.5));
+                    stationDummy.visible = false;
+                    return [stationSprite, stationDummy];
+                }
             case 'LARGE_SHIP':
                 {
-                    var largeShipSprite = this.createSpriteObject(entity, 25, this.largeShipTexture, new THREE.Color('red'));
-                    var largeShipDummy = this.createSphereObject(entity, 50, new THREE.Color(0.5, 0.5, 0.5));
+                    var size = 25 * (1 + entity.size / 2500);
+                    if (size >= 100) {
+                        size = 100;
+                    }
+                    var largeShipSprite = this.createSpriteObject(entity, size, this.largeShipTexture, new THREE.Color('skyblue'), true);
+                    var largeShipDummy = this.createSphereObject(entity, 4 * size, new THREE.Color(0.5, 0.5, 0.5));
                     largeShipDummy.visible = false;
                     return [largeShipSprite, largeShipDummy];
                 }
             case 'SMALL_SHIP':
                 {
-                    var smallShipSprite = this.createSpriteObject(entity, 25, this.largeShipTexture, new THREE.Color('green'));
-                    var smallShipDummy = this.createSphereObject(entity, 50, new THREE.Color(0.5, 0.5, 0.5));
+                    var size = 25 * (1 + entity.size / 250);
+                    if (size >= 100) {
+                        size = 100;
+                    }
+                    var smallShipSprite = this.createSpriteObject(entity, size, this.smallShipTexture, new THREE.Color('skyblue'));
+                    var smallShipDummy = this.createSphereObject(entity, size, new THREE.Color(0.5, 0.5, 0.5));
                     smallShipDummy.visible = false;
                     return [smallShipSprite, smallShipDummy];
                 }
             case 'GPS':
                 {
-                    var gpssprite = this.createSpriteObject(entity, 25, this.gpsTexture, new THREE.Color('skyblue'));
+                    var gpssprite = this.createSpriteObject(entity, 25, this.gpsTexture, new THREE.Color('yellow'));
                     var gpsdummy = this.createSphereObject(entity, 50, new THREE.Color(0.5, 0.5, 0.5));
                     gpsdummy.visible = false;
-                    this.addGps(entity.name, gpsdummy.position);
                     return [gpssprite, gpsdummy];
                 }
             case 'DEBRIS':
                 {
-                    return null;
+                    var debrisSprite = this.createSpriteObject(entity, 10, this.debrisTexture, new THREE.Color('red'), true);
+                    return [debrisSprite];
                 }
             case 'ASTEROID':
             default:
                 {
-                    var asteroid = this.createSphereObject(entity, 50, new THREE.Color(0.5, 0.5, 0.5), this.asteroidTexture);
+                    var asteroid = this.createSphereObject(entity, 70, new THREE.Color(0.5, 0.5, 0.5), this.asteroidTexture);
                     return [asteroid];
                 }
         }
@@ -248,19 +261,14 @@ var Viewer = (function () {
         this.scene.add(light2);
     };
     Viewer.prototype.clearGps = function () {
-        this.gpsCoordinates = [];
-        this.gpsSelector.innerHTML = '';
-        this.gpsSelector.innerHTML += '<option value="" selected=""selected>&lt; GPS &gt;</option>';
+        if (this.settings.clearGps) {
+            this.settings.clearGps();
+        }
     };
-    Viewer.prototype.addGps = function (name, position) {
-        this.gpsCoordinates.push(position);
-        var index = this.gpsCoordinates.length - 1;
-        this.gpsSelector.innerHTML += '<option value="' + index + '">' + name + '</option>';
-    };
-    Viewer.prototype.navigateTo = function (position) {
-        this.scene.position.set(-position.x, -position.y, -position.z);
-        this.hightlightScene.position.set(-position.x, -position.y, -position.z);
-        this.controls.update();
+    Viewer.prototype.addGps = function (type, name, position) {
+        if (this.settings.addGps) {
+            this.settings.addGps(type, name, position.x, position.y, position.z);
+        }
     };
     Viewer.prototype.render = function () {
         this.skyCamera.setRotationFromEuler(this.camera.rotation);
@@ -269,7 +277,7 @@ var Viewer = (function () {
         var intersects = this.raycaster.intersectObjects(this.scene.children);
         this.activeObject = null;
         if (intersects.length > 0) {
-            var obj = intersects[0].object;
+            var obj = intersects[intersects.length - 1].object;
             this.activeObject = obj.userData;
             var position = new THREE.Vector3(this.activeObject.x, this.activeObject.y, this.activeObject.z);
             var distance = Math.round(position.sub(this.controls.target).length() / 1000);
@@ -278,15 +286,16 @@ var Viewer = (function () {
         else {
             if (this.activeObject) {
                 this.activeObject = null;
-                this.updateTooltip(null);
             }
         }
-        var disableAutoScale = this.realScaleCheckbox.checked;
+        if (!this.activeObject) {
+            this.updateTooltip('');
+        }
         for (var j = 0; j < this.scene.children.length; j++) {
             var child = this.scene.children[j];
             var distance = child.position.sub(this.controls.target).length() / 1000;
             var scale = 1;
-            if (distance > 5 && disableAutoScale) {
+            if (distance > 5) {
                 scale += (distance - 5) / 20;
             }
             child.scale.set(scale, scale, scale);

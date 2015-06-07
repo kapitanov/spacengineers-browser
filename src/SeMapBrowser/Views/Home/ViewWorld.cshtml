@@ -23,48 +23,106 @@
         <p class="navbar-text">
             <i class="fa fa-globe"></i> @Model.Name (@Model.Date.ToString("yyyy MMM dd"))
         </p>
-        <div class="navbar-form navbar-left">
-            <div class="form-group">
-                <select id="gps_selector" class="form-control"></select>
-            </div>
-            <div class="form-group">
-                <div class="checkbox">
-                    <label>
-                        <input id="realScaleCheckbox" type="checkbox" checked="checked" />
-                        <span style="color: white;">Real scale</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-        <ul class="nav navbar-nav navbar-right">
-            <li>
-                <a href="@Url.Action("Index")"><i class="fa fa-times-circle"></i> Close</a>
-            </li>
-        </ul>
+        <a href="@Url.Action("Index")" class="btn btn-default navbar-btn navbar-right"><i class="fa fa-times-circle"></i> Close</a>
+        <button type="button" class="btn btn-default navbar-btn navbar-right" data-toggle="modal" data-target="#gpsModal">GPS</button>
     </div>
 </div>
 
-<script type="application/x-glsl" id="sky-vertex">
-    varying vec2 vUV;
+<div id="gpsModal" class="modal fade">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title">Jump to...</h4>
+            </div>
+            <div class="modal-body">
+                <div role="tabpanel">
 
-    void main() {
-    vUV = uv;
-    vec4 pos = vec4(position, 1.0);
-    gl_Position = projectionMatrix * modelViewMatrix * pos;
-    }
-</script>
+                    <ul class="nav nav-tabs">
+                        <li class="active"><a data-toggle="tab" href="#_gps">GPS</a></li>
+                        <li><a data-toggle="tab" href="#_stations">Stations</a></li>
+                        <li><a data-toggle="tab" href="#_smallships">Small ships</a></li>
+                        <li><a data-toggle="tab" href="#_largeships">Large ships</a></li>
+                        <li><a data-toggle="tab" href="#_asteroids">Asteroids</a></li>
+                    </ul>
 
-<script type="application/x-glsl" id="sky-fragment">
-    uniform sampler2D texture;
-    varying vec2 vUV;
+                    <div class="tab-content">
+                        <div class="tab-pane active" id="_gps">
+                            <div class="list-group"></div>
+                        </div>
+                        <div class="tab-pane" id="_stations">
+                            <div class="list-group"></div>
+                        </div>
+                        <div class="tab-pane" id="_smallships">
+                            <div class="list-group"></div>
+                        </div>
+                        <div class="tab-pane" id="_largeships">
+                            <div class="list-group"></div>
+                        </div>
+                        <div class="tab-pane" id="_asteroids">
+                            <div class="list-group"></div>
+                        </div>
+                    </div>
 
-    void main() {
-    vec4 sample = texture2D(texture, vUV);
-    gl_FragColor = vec4(sample.xyz, sample.w);
-    }
-</script>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
-    var viewer = new Viewer();
-    viewer.loadWorld('@Model.Name');
+    $(function () {
+        var viewer;
+
+        function clearGps() {
+            $('#gpsModal .list-group').html('');
+        }
+
+        function addGps(type, name, x, y, z) {
+            var target;
+            switch (type) {
+                case 'GPS':
+                    target = $('#_gps .list-group');
+                    break;
+                case 'STATION':
+                    target = $('#_stations .list-group');
+                    break;
+                case 'SMALL_SHIP':
+                    target = $('#_smallships .list-group');
+                    break;
+                case 'LARGE_SHIP':
+                    target = $('#_largeships .list-group');
+                    break;
+                case 'ASTEROID':
+                    target = $('#_asteroids .list-group');
+                    break;
+                default:
+                    return;
+            }
+
+            var cmd = $('<a>').attr({ href: '#', 'class': 'list-group-item ' }).data({ x: x, y: y, z: z }).text(name + ' (' + x + ', ' + y + ', ' + z + ')');
+            target.append(cmd);
+        }
+
+
+        viewer = new Viewer({
+            clearGps: clearGps,
+            addGps: addGps
+        });
+        viewer.loadWorld('@Model.Name');
+
+        $('#gpsModal .list-group').on('click', 'a', function() {
+            var $this = $(this);
+            var x = parseFloat($this.data('x'));
+            var y = parseFloat($this.data('y'));
+            var z = parseFloat($this.data('z'));
+
+            if (x && y && z) {
+                viewer.navigateTo(x, y, z);
+                $('#gpsModal').modal('hide');
+            }
+
+            return false;
+        });
+    });
 </script>

@@ -4,13 +4,14 @@ namespace SeMapBrowser.Models
 {
     public sealed class Entity
     {
-        public Entity(string type, string name, double x, double y, double z)
+        public Entity(string type, string name, double x, double y, double z, double size = 1)
         {
             Type = type;
             Name = name;
             X = x;
             Y = y;
             Z = z;
+            Size = size;
         }
 
         [JsonProperty("type")]
@@ -27,5 +28,8 @@ namespace SeMapBrowser.Models
 
         [JsonProperty("z")]
         public double Z { get; }
+
+        [JsonProperty("size")]
+        public double Size { get; }
     }
 }

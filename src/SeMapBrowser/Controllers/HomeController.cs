@@ -66,7 +66,7 @@ namespace SeMapBrowser.Controllers
             return View("~/Views/Shared/Error.cshtml");
         }
 
-        [Route("~/world/{*id}")]
+        [HttpGet, Route("~/world/{*id}")]
         public IActionResult ViewWorld(string id)
         {
             var path = _hostingEnvironment.MapPath(string.Format(@"worlds\{0}.json", id));
